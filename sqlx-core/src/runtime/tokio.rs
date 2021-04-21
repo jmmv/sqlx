@@ -12,6 +12,8 @@ use futures_util::{AsyncReadExt, AsyncWriteExt, FutureExt, TryFutureExt};
 
 use crate::io::Stream;
 use crate::{Async, Runtime};
+use std::future::Future;
+use std::time::Instant;
 
 /// Provides [`Runtime`] for [**Tokio**](https://tokio.rs). Supports only non-blocking operation.
 ///
@@ -54,6 +56,14 @@ impl Runtime for Tokio {
     #[cfg(unix)]
     fn connect_unix_async(path: &Path) -> BoxFuture<'_, io::Result<Self::UnixStream>> {
         UnixStream::connect(path).map_ok(Compat::new).boxed()
+    }
+
+    #[doc(hidden)]
+    fn timeout_at_async<'a, F: Future + Send + 'a>(
+        fut: F,
+        deadline: Instant,
+    ) -> BoxFuture<'a, Option<F::Output>> {
+        Box::pin(_tokio::time::timeout_at(deadline.into(), fut).map(Result::ok))
     }
 }
 

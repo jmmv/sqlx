@@ -15,7 +15,10 @@ pub async fn configure_tls_connector(
     root_cert_path: Option<&CertificateInput>,
 ) -> Result<sqlx_rt::TlsConnector, Error> {
     let mut config = ClientConfig::new();
-
+    // config.enable_sni = false;
+    // config.versions = vec!(rustls::ProtocolVersion::TLSv1_2);
+    // config.ciphersuites = rustls::ALL_CIPHERSUITES.to_vec();
+    // config.set_mtu(&Some(16*1024));
     if accept_invalid_certs {
         config
             .dangerous()

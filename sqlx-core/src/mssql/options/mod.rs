@@ -11,6 +11,7 @@ pub struct MssqlConnectOptions {
     pub(crate) database: String,
     pub(crate) password: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) encrypt: bool,
 }
 
 impl Default for MssqlConnectOptions {
@@ -28,6 +29,7 @@ impl MssqlConnectOptions {
             username: String::from("sa"),
             password: None,
             log_settings: Default::default(),
+            encrypt: false,
         }
     }
 
@@ -53,6 +55,11 @@ impl MssqlConnectOptions {
 
     pub fn database(mut self, database: &str) -> Self {
         self.database = database.to_owned();
+        self
+    }
+
+    pub fn encrypt(mut self) -> Self {
+        self.encrypt = true;
         self
     }
 }

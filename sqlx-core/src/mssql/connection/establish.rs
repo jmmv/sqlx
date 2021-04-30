@@ -8,8 +8,13 @@ use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::pre_login::{Encrypt, PreLogin, Version};
 use crate::mssql::{MssqlConnectOptions, MssqlConnection, MssqlSslMode};
 
+enum ConnectResult {
+    Stream(MssqlStream),
+    Reroute(String, u16),
+}
+
 impl MssqlConnection {
-    pub(crate) async fn establish(options: &MssqlConnectOptions) -> Result<Self, Error> {
+    async fn connect(options: &MssqlConnectOptions) -> Result<ConnectResult, Error> {
         let mut stream: MssqlStream = MssqlStream::connect(options).await?;
 
         // Send PRELOGIN to set up the context for login. The server should immediately
@@ -72,6 +77,7 @@ impl MssqlConnection {
 
         stream.flush().await?;
 
+        let result;
         loop {
             // NOTE: we should receive an [Error] message if something goes wrong, otherwise,
             //       all messages are mostly informational (ENVCHANGE, INFO, LOGINACK)
@@ -83,10 +89,36 @@ impl MssqlConnection {
                 }
 
                 Message::Done(_) => {
+                    result = ConnectResult::Stream(stream);
+                    break;
+                }
+
+                Message::Reroute(new_server, new_port) => {
+                    result = ConnectResult::Reroute(new_server, new_port);
                     break;
                 }
 
                 _ => {}
+            }
+        }
+        Ok(result)
+    }
+
+    pub(crate) async fn establish(options: &MssqlConnectOptions) -> Result<Self, Error> {
+        let mut options = options.clone();
+        let stream;
+        loop {
+            log::trace!("mssql: Connecting to {}:{}", options.host, options.port);
+            match MssqlConnection::connect(&options).await? {
+                ConnectResult::Stream(s) => {
+                    stream = s;
+                    break;
+                }
+                ConnectResult::Reroute(host, port) => {
+                    log::trace!("mssql: Server asks us to redirect the connection; reestablishing");
+                    options.host = host;
+                    options.port = port;
+                }
             }
         }
 

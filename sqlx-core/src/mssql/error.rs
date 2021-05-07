@@ -7,6 +7,12 @@ use crate::mssql::protocol::error::Error;
 /// An error returned from the MSSQL database.
 pub struct MssqlDatabaseError(pub(crate) Error);
 
+impl MssqlDatabaseError {
+    pub fn number(&self) -> i32 {
+        self.0.number
+    }
+}
+
 impl Debug for MssqlDatabaseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("MssqlDatabaseError")
